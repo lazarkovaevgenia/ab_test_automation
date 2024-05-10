@@ -1,0 +1,72 @@
+from google.analytics.data_v1beta import BetaAnalyticsDataClient
+from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest
+from google.oauth2.service_account import Credentials
+
+def fetch_total_users_for_variants(property_id, start_date, end_date, key_path):
+    # Load credentials from service account file
+    credentials = Credentials.from_service_account_file(key_path)
+
+    # Create an analytics data API client
+    client = BetaAnalyticsDataClient(credentials=credentials)
+
+    # Set up the requests for "Original" and "Variant 1"
+    variations = {
+        "Original": "Original",
+        "Variant 1": "Variant 1"
+    }
+    experiment_id = "100472957"
+
+    for variant_name, variant_value in variations.items():
+        # Construct the filter expression directly within the request
+        request = RunReportRequest(
+            property=f"properties/{property_id}",
+            dimensions=[
+                Dimension(name="customEvent:experiment_id"),
+                Dimension(name="customEvent:variation_name"),
+            ],
+            metrics=[Metric(name="totalUsers")],
+            date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+            dimension_filter={
+                'and_group': {
+                    'expressions': [
+                        {
+                            'filter': {
+                                'field_name': 'customEvent:experiment_id',
+                                'string_filter': {
+                                    'match_type': 'EXACT',
+                                    'value': experiment_id
+                                }
+                            }
+                        },
+                        {
+                            'filter': {
+                                'field_name': 'customEvent:variation_name',
+                                'string_filter': {
+                                    'match_type': 'EXACT',
+                                    'value': variant_value
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        )
+
+        # Execute the report request
+        response = client.run_report(request)
+
+        # Print the results
+        if response.rows:
+            total_users = sum(int(row.metric_values[0].value) for row in response.rows)
+            print(f"Results for variant '{variant_name}':")
+            print(f"Total Users: {total_users}")
+        else:
+            print(f"No data found for variant '{variant_name}'")
+
+# Set the actual key path and property ID
+fetch_total_users_for_variants(
+    property_id='321154103',
+    start_date='2024-04-30',
+    end_date='2024-05-08',
+    key_path='/Users/lazarkovaevgenia/desktop/Rprojects/acoustic-garden-317516-a6e925691208.json'
+)
