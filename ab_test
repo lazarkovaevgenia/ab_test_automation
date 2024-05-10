@@ -11,43 +11,26 @@ def fetch_total_users_for_variants(property_id, start_date, end_date, key_path):
 
     # Set up the requests for "Original" and "Variant 1"
     variations = {
-        "Original": "Original",
-        "Variant 1": "Variant 1"
+        "ORIGINAL": "CONV-100468531-1004167775",
+        "VARIANT": "CONV-100468531-1004167776"
     }
-    experiment_id = "100472957"
 
     for variant_name, variant_value in variations.items():
         # Construct the filter expression directly within the request
         request = RunReportRequest(
             property=f"properties/{property_id}",
             dimensions=[
-                Dimension(name="customEvent:experiment_id"),
-                Dimension(name="customEvent:variation_name"),
+                Dimension(name="customEvent:exp_variant_string"),
             ],
             metrics=[Metric(name="totalUsers")],
             date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
             dimension_filter={
-                'and_group': {
-                    'expressions': [
-                        {
-                            'filter': {
-                                'field_name': 'customEvent:experiment_id',
-                                'string_filter': {
-                                    'match_type': 'EXACT',
-                                    'value': experiment_id
-                                }
-                            }
-                        },
-                        {
-                            'filter': {
-                                'field_name': 'customEvent:variation_name',
-                                'string_filter': {
-                                    'match_type': 'EXACT',
-                                    'value': variant_value
-                                }
-                            }
-                        }
-                    ]
+                'filter': {
+                    'field_name': 'customEvent:exp_variant_string',
+                    'string_filter': {
+                        'match_type': 'EXACT',
+                        'value': variant_value
+                    }
                 }
             }
         )
@@ -65,8 +48,8 @@ def fetch_total_users_for_variants(property_id, start_date, end_date, key_path):
 
 # Set the actual key path and property ID
 fetch_total_users_for_variants(
-    property_id='321154103',
-    start_date='2024-04-30',
-    end_date='2024-05-08',
-    key_path='/Users/lazarkovaevgenia/desktop/Rprojects/acoustic-garden-317516-a6e925691208.json'
+    property_id='340035407',
+    start_date='2024-04-03',
+    end_date='2024-05-01',
+    key_path='/path/doc.json'
 )
