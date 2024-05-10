@@ -2,8 +2,8 @@ from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest
 from google.oauth2.service_account import Credentials
 
-def fetch_total_users_for_variants(property_id, start_date, end_date, key_path):
-    # Load credentials from service account file
+def fetch_metrics_for_variants(property_id, start_date, end_date, key_path):
+    # Load credentials from the service account file
     credentials = Credentials.from_service_account_file(key_path)
 
     # Create an analytics data API client
@@ -15,6 +15,16 @@ def fetch_total_users_for_variants(property_id, start_date, end_date, key_path):
         "VARIANT": "CONV-100468531-1004167776"
     }
 
+    # Define additional metrics
+    additional_metrics = [
+        Metric(name="totalUsers"),
+        Metric(name="conversions"),
+        Metric(name="bounceRate"),
+        Metric(name="sessions"),
+        Metric(name="eventsPerSession"),
+        Metric(name="sessionConversionRate")
+    ]
+
     for variant_name, variant_value in variations.items():
         # Construct the filter expression directly within the request
         request = RunReportRequest(
@@ -22,7 +32,7 @@ def fetch_total_users_for_variants(property_id, start_date, end_date, key_path):
             dimensions=[
                 Dimension(name="customEvent:exp_variant_string"),
             ],
-            metrics=[Metric(name="totalUsers")],
+            metrics=additional_metrics,
             date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
             dimension_filter={
                 'filter': {
@@ -40,16 +50,18 @@ def fetch_total_users_for_variants(property_id, start_date, end_date, key_path):
 
         # Print the results
         if response.rows:
-            total_users = sum(int(row.metric_values[0].value) for row in response.rows)
-            print(f"Results for variant '{variant_name}':")
-            print(f"Total Users: {total_users}")
+            metrics_names = [metric.name for metric in additional_metrics]
+            for row in response.rows:
+                print(f"Results for variant '{variant_name}':")
+                for index, metric_value in enumerate(row.metric_values):
+                    print(f"{metrics_names[index]}: {metric_value.value}")
         else:
             print(f"No data found for variant '{variant_name}'")
 
 # Set the actual key path and property ID
-fetch_total_users_for_variants(
+fetch_metrics_for_variants(
     property_id='340035407',
     start_date='2024-04-03',
     end_date='2024-05-01',
-    key_path='/path/doc.json'
+    key_path='/Users/path/doc.json'
 )
