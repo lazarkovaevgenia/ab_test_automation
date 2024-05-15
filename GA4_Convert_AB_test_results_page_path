@@ -1,0 +1,94 @@
+from google.analytics.data_v1beta import BetaAnalyticsDataClient
+from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest
+from google.oauth2.service_account import Credentials
+from google.api_core.exceptions import GoogleAPIError
+
+def fetch_metrics_for_variants(property_id, start_date, end_date, key_path):
+    # Load credentials from the service account file
+    credentials = Credentials.from_service_account_file(key_path)
+
+    # Create an analytics data API client
+    client = BetaAnalyticsDataClient(credentials=credentials)
+
+    # Set up the requests for "Original" and "Variant 1"
+    variations = {
+        "ORIGINAL": "CONV-100468531-1004167775",
+        "VARIANT": "CONV-100468531-1004167776"
+    }
+
+    # Define the required metrics
+    metrics = [
+        Metric(name="totalUsers"),
+        Metric(name="sessions"),
+        Metric(name="bounceRate"),
+        Metric(name="conversions"),
+        Metric(name="sessionConversionRate"),
+        Metric(name="screenPageViews")  # Add screenPageViews metric to track page views
+    ]
+
+    for variant_name, variant_value in variations.items():
+        # Construct the filter expression directly within the request
+        request = RunReportRequest(
+            property=f"properties/{property_id}",
+            dimensions=[
+                Dimension(name="customEvent:exp_variant_string"),
+                Dimension(name="unifiedPagePathScreen")  # Add dimension for page path
+            ],
+            metrics=metrics,
+            date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+            dimension_filter={
+                'and_group': {
+                    'expressions': [
+                        {
+                            'filter': {
+                                'field_name': 'customEvent:exp_variant_string',
+                                'string_filter': {
+                                    'match_type': 'EXACT',
+                                    'value': variant_value
+                                }
+                            }
+                        },
+                        {
+                            'filter': {
+                                'field_name': 'unifiedPagePathScreen',
+                                'string_filter': {
+                                    'match_type': 'CONTAINS',
+                                    'value': '/about-us'
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        )
+
+        try:
+            # Execute the report request
+            response = client.run_report(request)
+
+            # Print the results
+            if response.rows:
+                print(f"Results for variant '{variant_name}':")
+                for row in response.rows:
+                    for metric, metric_value in zip(metrics, row.metric_values):
+                        if metric.name == "bounceRate":
+                            # Convert bounce rate to a percentage
+                            value = float(metric_value.value) * 100
+                            print(f"{metric.name}: {value:.2f}%")
+                        else:
+                            print(f"{metric.name}: {metric_value.value}")
+                    print(f"Page Path: {row.dimension_values[1].value}")  # Print the page path
+                print()  # Add a newline for better readability
+            else:
+                print(f"No data found for variant '{variant_name}'")
+
+        except GoogleAPIError as e:
+            print(f"An error occurred while fetching data for variant '{variant_name}': {e.message}")
+
+# Set the actual key path and property ID
+fetch_metrics_for_variants(
+    property_id='340035407',
+    start_date='2024-04-03',
+    end_date='2024-05-01',
+    key_path='/Users/lazarkovaevgenia/desktop/Rprojects/acoustic-garden-317516-a6e925691208.json'
+)
