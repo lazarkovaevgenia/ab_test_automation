@@ -1,0 +1,111 @@
+from google.analytics.data_v1beta import BetaAnalyticsDataClient
+from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest
+from google.oauth2.service_account import Credentials
+from google.api_core.exceptions import GoogleAPIError
+
+def fetch_metrics_for_abtasty_variants(property_id, start_date, end_date, key_path):
+    # Load credentials from the service account file
+    credentials = Credentials.from_service_account_file(key_path)
+
+    # Create an analytics data API client
+    client = BetaAnalyticsDataClient(credentials=credentials)
+
+    # Set up the requests for "Original" and "Variant 1"
+    variations = {
+        "ORIGINAL": ("[1190366] NET-092 | Search Focused HP With Common Prompts ", "[0] Original"),
+        "VARIANT": ("[1190366] NET-092 | Search Focused HP With Common Prompts ", "[1475917] Variation 1")
+    }
+
+    # Define the required metrics
+    metrics = [
+        Metric(name="totalUsers"),
+        Metric(name="sessions"),
+        Metric(name="bounceRate"),
+        Metric(name="conversions"),
+        Metric(name="sessionConversionRate"),
+        Metric(name="screenPageViews")
+    ]
+
+    # Define pages to check
+    pages = [
+        "/shopping-cart",
+        "/checkout/login"
+    ]
+
+    for page in pages:
+        for variant_name, (campaign, variant) in variations.items():
+            # Construct the filter expression directly within the request
+            request = RunReportRequest(
+                property=f"properties/{property_id}",
+                dimensions=[
+                    Dimension(name="customEvent:abtasty_campaign"),
+                    Dimension(name="customEvent:abtasty_variation"),
+                    Dimension(name="unifiedPagePathScreen")
+                ],
+                metrics=metrics,
+                date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+                dimension_filter={
+                    'and_group': {
+                        'expressions': [
+                            {
+                                'filter': {
+                                    'field_name': 'customEvent:abtasty_campaign',
+                                    'string_filter': {
+                                        'match_type': 'CONTAINS',
+                                        'value': campaign
+                                    }
+                                }
+                            },
+                            {
+                                'filter': {
+                                    'field_name': 'customEvent:abtasty_variation',
+                                    'string_filter': {
+                                        'match_type': 'CONTAINS',
+                                        'value': variant
+                                    }
+                                }
+                            },
+                            {
+                                'filter': {
+                                    'field_name': 'unifiedPagePathScreen',
+                                    'string_filter': {
+                                        'match_type': 'CONTAINS',
+                                        'value': page
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            )
+
+            try:
+                # Execute the report request
+                response = client.run_report(request)
+
+                # Print the results
+                if response.rows:
+                    print(f"Results for variant '{variant_name}' on page '{page}':")
+                    for row in response.rows:
+                        for metric, metric_value in zip(metrics, row.metric_values):
+                            if metric.name == "bounceRate":
+                                # Convert bounce rate to a percentage
+                                value = float(metric_value.value) * 100
+                                print(f"{metric.name}: {value:.2f}%")
+                            else:
+                                print(f"{metric.name}: {metric_value.value}")
+                        print(f"Page Path: {row.dimension_values[2].value}")
+                    print()  # Add a newline for better readability
+                else:
+                    print(f"No data found for variant '{variant_name}' on page '{page}'")
+
+            except GoogleAPIError as e:
+                print(f"An error occurred while fetching data for variant '{variant_name}' on page '{page}': {e.message}")
+
+# Set the actual key path and property ID
+fetch_metrics_for_abtasty_variants(
+    property_id='280194443',
+    start_date='2024-03-27',
+    end_date='2024-04-25',
+    key_path='/Users/path/doc.json'
+)
