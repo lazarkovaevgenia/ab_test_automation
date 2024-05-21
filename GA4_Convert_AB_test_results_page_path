@@ -23,72 +23,85 @@ def fetch_metrics_for_variants(property_id, start_date, end_date, key_path):
         Metric(name="bounceRate"),
         Metric(name="conversions"),
         Metric(name="sessionConversionRate"),
-        Metric(name="screenPageViews")  # Add screenPageViews metric to track page views
+        Metric(name="screenPageViews")
     ]
 
-    for variant_name, variant_value in variations.items():
-        # Construct the filter expression directly within the request
-        request = RunReportRequest(
-            property=f"properties/{property_id}",
-            dimensions=[
-                Dimension(name="customEvent:exp_variant_string"),
-                Dimension(name="unifiedPagePathScreen")  # Add dimension for page path
-            ],
-            metrics=metrics,
-            date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
-            dimension_filter={
-                'and_group': {
-                    'expressions': [
-                        {
-                            'filter': {
-                                'field_name': 'customEvent:exp_variant_string',
-                                'string_filter': {
-                                    'match_type': 'EXACT',
-                                    'value': variant_value
+    # Define pages to check
+    pages = [
+        "/about-us",
+        "/how-we-work",
+        "/success-stories",
+        "/software-development-for-government-agencies",
+        "/mobile-app-development",
+        "/legacy-app-modernization-services",
+        "/blog",
+        "/custom-software"
+    ]
+
+    for page in pages:
+        for variant_name, variant_value in variations.items():
+            # Construct the filter expression directly within the request
+            request = RunReportRequest(
+                property=f"properties/{property_id}",
+                dimensions=[
+                    Dimension(name="customEvent:exp_variant_string"),
+                    Dimension(name="unifiedPagePathScreen")
+                ],
+                metrics=metrics,
+                date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+                dimension_filter={
+                    'and_group': {
+                        'expressions': [
+                            {
+                                'filter': {
+                                    'field_name': 'customEvent:exp_variant_string',
+                                    'string_filter': {
+                                        'match_type': 'EXACT',
+                                        'value': variant_value
+                                    }
+                                }
+                            },
+                            {
+                                'filter': {
+                                    'field_name': 'unifiedPagePathScreen',
+                                    'string_filter': {
+                                        'match_type': 'CONTAINS',
+                                        'value': page
+                                    }
                                 }
                             }
-                        },
-                        {
-                            'filter': {
-                                'field_name': 'unifiedPagePathScreen',
-                                'string_filter': {
-                                    'match_type': 'CONTAINS',
-                                    'value': '/about-us'
-                                }
-                            }
-                        }
-                    ]
+                        ]
+                    }
                 }
-            }
-        )
+            )
 
-        try:
-            # Execute the report request
-            response = client.run_report(request)
+            try:
+                # Execute the report request
+                response = client.run_report(request)
 
-            # Print the results
-            if response.rows:
-                print(f"Results for variant '{variant_name}':")
-                for row in response.rows:
-                    for metric, metric_value in zip(metrics, row.metric_values):
-                        if metric.name == "bounceRate":
-                            # Convert bounce rate to a percentage
-                            value = float(metric_value.value) * 100
-                            print(f"{metric.name}: {value:.2f}%")
-                        else:
-                            print(f"{metric.name}: {metric_value.value}")
-                    print(f"Page Path: {row.dimension_values[1].value}")  # Print the page path
-                print()  # Add a newline for better readability
-            else:
-                print(f"No data found for variant '{variant_name}'")
+                # Print the results
+                if response.rows:
+                    print(f"Results for variant '{variant_name}' on page '{page}':")
+                    for row in response.rows:
+                        for metric, metric_value in zip(metrics, row.metric_values):
+                            if metric.name == "bounceRate":
+                                # Convert bounce rate to a percentage
+                                value = float(metric_value.value) * 100
+                                print(f"{metric.name}: {value:.2f}%")
+                            else:
+                                print(f"{metric.name}: {metric_value.value}")
+                        print(f"Page Path: {row.dimension_values[1].value}")
+                    print()  # Add a newline for better readability
+                else:
+                    print(f"No data found for variant '{variant_name}' on page '{page}'")
 
-        except GoogleAPIError as e:
-            print(f"An error occurred while fetching data for variant '{variant_name}': {e.message}")
+            except GoogleAPIError as e:
+                print(f"An error occurred while fetching data for variant '{variant_name}' on page '{page}': {e.message}")
 
 # Set the actual key path and property ID
 fetch_metrics_for_variants(
     property_id='340035407',
     start_date='2024-04-03',
     end_date='2024-05-01',
-    key_path='/Users/lazarkovaevgenia/desktop/Rprojects/acoustic-garden-317516-a6e925691208.json'
+    key_path='/Users/path/doc.json'
 )
